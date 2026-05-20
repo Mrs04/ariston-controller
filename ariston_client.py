@@ -76,7 +76,9 @@ class AristonClient:
             cloud = Ariston()
             ok = await cloud.async_connect(username, password)
             if not ok:
-                return None, []
+                raise RuntimeError(
+                    "Ariston login failed — wrong username or password."
+                )
             devices = await cloud.async_discover()
             target_gw = gateway
             if target_gw:
