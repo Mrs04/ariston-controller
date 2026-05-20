@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 import threading
 from dataclasses import dataclass, asdict
 from typing import Any, Optional
@@ -16,6 +17,35 @@ from ariston import Ariston
 from ariston.base_device import AristonBaseDevice
 
 _LOG = logging.getLogger(__name__)
+
+# Ariston Net blocks the library's default User-Agent ("RestSharp/...") as a
+# third-party client (see fustom/ariston-remotethermo-home-assistant-v3#362).
+# Spoofing a real browser User-Agent has been confirmed by multiple users to
+# stop the 429 lockouts for months at a time.
+BROWSER_USER_AGENT = (
+    "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/132.0.0.0 Mobile Safari/537.36"
+)
+
+
+def parse_retry_seconds(exc: BaseException) -> Optional[int]:
+    """Pull the wait time out of an Ariston 429 ConnectionException.
+
+    The body of the 429 is plain text like
+        ``Requests are blocked for 66 seconds``
+    Returns the integer seconds, or None if the exception isn't a 429 we recognise.
+    """
+    for arg in getattr(exc, "args", ()) or ():
+        if isinstance(arg, (bytes, bytearray)):
+            try:
+                arg = arg.decode(errors="replace")
+            except Exception:  # noqa: BLE001
+                continue
+        if isinstance(arg, str):
+            m = re.search(r"blocked for (\d+)\s*seconds?", arg, re.IGNORECASE)
+            if m:
+                return int(m.group(1))
+    return None
 
 
 @dataclass
@@ -66,15 +96,19 @@ class AristonClient:
         assert self._loop is not None
         return asyncio.run_coroutine_threadsafe(coro, self._loop).result()
 
-    def connect(self, username: str, password: str, gateway: Optional[str] = None) -> bool:
+    def connect(self, username: str, password: str,
+                gateway: Optional[str] = None,
+                user_agent: str = BROWSER_USER_AGENT) -> bool:
         """Connect, discover, and bind to a device.
 
         If `gateway` is provided, use it. Otherwise bind to the first discovered device.
+        `user_agent` defaults to a browser string to avoid Ariston's third-party
+        client blocks; pass a different value to override.
         Returns True if a device is bound.
         """
         async def _connect():
             cloud = Ariston()
-            ok = await cloud.async_connect(username, password)
+            ok = await cloud.async_connect(username, password, user_agent=user_agent)
             if not ok:
                 raise RuntimeError(
                     "Ariston login failed — wrong username or password."

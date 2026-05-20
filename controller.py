@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
 
-from ariston_client import AristonClient, DeviceSnapshot
+from ariston_client import AristonClient, DeviceSnapshot, parse_retry_seconds
 from rules import RuleSet
 
 _LOG = logging.getLogger(__name__)
@@ -61,7 +61,7 @@ class PollerThread(threading.Thread):
     """Periodically refreshes device state and stores the latest snapshot."""
 
     def __init__(self, client: AristonClient, log: EventLog,
-                 interval_seconds: float = 120.0) -> None:
+                 interval_seconds: float = 300.0) -> None:
         super().__init__(daemon=True, name="ariston-poller")
         self.client = client
         self.log = log
@@ -90,14 +90,23 @@ class PollerThread(threading.Thread):
     def run(self) -> None:  # noqa: D401
         self.log.info(f"Poller started (every {self.interval:g}s).")
         while not self._stop.is_set():
+            sleep_for = self.interval
             try:
                 snap = self.client.refresh()
                 with self._lock:
                     self._last = snap
                     self._last_at = datetime.now()
             except Exception as exc:  # noqa: BLE001
-                self.log.error(f"Poll failed: {exc!r}")
-            self._stop.wait(self.interval)
+                retry = parse_retry_seconds(exc)
+                if retry is not None:
+                    sleep_for = max(self.interval, retry + 5)
+                    self.log.warn(
+                        f"Ariston rate-limited (429): blocked for {retry}s. "
+                        f"Backing off {sleep_for:g}s."
+                    )
+                else:
+                    self.log.error(f"Poll failed: {exc!r}")
+            self._stop.wait(sleep_for)
         self.log.info("Poller stopped.")
 
 
@@ -106,7 +115,7 @@ class RuleThread(threading.Thread):
 
     def __init__(self, client: AristonClient, poller: PollerThread,
                  ruleset_provider, log: EventLog,
-                 interval_seconds: float = 120.0,
+                 interval_seconds: float = 300.0,
                  deadband: float = 0.5) -> None:
         super().__init__(daemon=True, name="ariston-rules")
         self.client = client
@@ -142,12 +151,21 @@ class RuleThread(threading.Thread):
     def run(self) -> None:  # noqa: D401
         self.log.info(f"Rule controller started (every {self.interval:g}s).")
         while not self._stop.is_set():
+            sleep_for = self.interval
             if self._enabled.is_set():
                 try:
                     self._tick()
                 except Exception as exc:  # noqa: BLE001
-                    self.log.error(f"Rule tick failed: {exc!r}")
-            self._stop.wait(self.interval)
+                    retry = parse_retry_seconds(exc)
+                    if retry is not None:
+                        sleep_for = max(self.interval, retry + 5)
+                        self.log.warn(
+                            f"Rule tick rate-limited: blocked for {retry}s. "
+                            f"Backing off {sleep_for:g}s."
+                        )
+                    else:
+                        self.log.error(f"Rule tick failed: {exc!r}")
+            self._stop.wait(sleep_for)
         self.log.info("Rule controller stopped.")
 
     def _tick(self) -> None:

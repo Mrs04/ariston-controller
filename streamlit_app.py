@@ -88,10 +88,11 @@ st.sidebar.caption(
 
 st.sidebar.header("Schedulers")
 poll_interval = st.sidebar.number_input(
-    "Poll every (seconds)", min_value=5, max_value=600, step=5, value=120,
+    "Poll every (seconds)", min_value=60, max_value=3600, step=30, value=300,
+    help="Ariston throttles aggressive callers; 300 s is the community-recommended floor.",
 )
 rule_interval = st.sidebar.number_input(
-    "Apply rules every (seconds)", min_value=15, max_value=1800, step=15, value=120,
+    "Apply rules every (seconds)", min_value=60, max_value=3600, step=30, value=300,
 )
 ui_refresh = st.sidebar.number_input(
     "UI auto-refresh (seconds)", min_value=2, max_value=120, step=1, value=5,
