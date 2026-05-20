@@ -61,7 +61,7 @@ class PollerThread(threading.Thread):
     """Periodically refreshes device state and stores the latest snapshot."""
 
     def __init__(self, client: AristonClient, log: EventLog,
-                 interval_seconds: float = 30.0) -> None:
+                 interval_seconds: float = 120.0) -> None:
         super().__init__(daemon=True, name="ariston-poller")
         self.client = client
         self.log = log

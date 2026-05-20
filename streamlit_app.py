@@ -88,7 +88,7 @@ st.sidebar.caption(
 
 st.sidebar.header("Schedulers")
 poll_interval = st.sidebar.number_input(
-    "Poll every (seconds)", min_value=5, max_value=600, step=5, value=30,
+    "Poll every (seconds)", min_value=5, max_value=600, step=5, value=120,
 )
 rule_interval = st.sidebar.number_input(
     "Apply rules every (seconds)", min_value=15, max_value=1800, step=15, value=120,

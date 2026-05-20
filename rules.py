@@ -30,7 +30,7 @@ class Rule:
     offset: float = 0.0   # added to current temp
     floor: float = 40.0   # don't request a target below this
     cap: float = 50.0     # don't request a target above this (heat-pump-only)
-    enabled: bool = True
+    enabled: bool = False
 
     def matches(self, now: time) -> bool:
         s = _parse_hhmm(self.start)

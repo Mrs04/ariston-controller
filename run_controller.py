@@ -28,8 +28,8 @@ from rules import load_rules
 def main() -> None:
     load_dotenv()
     parser = argparse.ArgumentParser()
-    parser.add_argument("--poll", type=float, default=30.0,
-                        help="Poll interval in seconds (default 30).")
+    parser.add_argument("--poll", type=float, default=120.0,
+                        help="Poll interval in seconds (default 120).")
     parser.add_argument("--apply", type=float, default=120.0,
                         help="Rule-application interval in seconds (default 120).")
     args = parser.parse_args()
