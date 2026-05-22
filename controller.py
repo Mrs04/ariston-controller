@@ -85,7 +85,7 @@ class PollerThread(threading.Thread):
         self._stop.set()
 
     def set_interval(self, interval_seconds: float) -> None:
-        self.interval = max(5.0, float(interval_seconds))
+        self.interval = max(60.0, float(interval_seconds))
 
     def run(self) -> None:  # noqa: D401
         self.log.info(f"Poller started (every {self.interval:g}s).")
@@ -125,8 +125,9 @@ class RuleThread(threading.Thread):
         self.interval = interval_seconds
         self.deadband = deadband
         self._stop = threading.Event()
+        # Start paused: the rule controller must be explicitly resumed
+        # from the UI before it pushes any temperature changes.
         self._enabled = threading.Event()
-        self._enabled.set()
         self._last_rule_name: Optional[str] = None
         self._last_target_applied: Optional[float] = None
 
@@ -146,7 +147,7 @@ class RuleThread(threading.Thread):
         return self._enabled.is_set()
 
     def set_interval(self, interval_seconds: float) -> None:
-        self.interval = max(15.0, float(interval_seconds))
+        self.interval = max(60.0, float(interval_seconds))
 
     def run(self) -> None:  # noqa: D401
         self.log.info(f"Rule controller started (every {self.interval:g}s).")

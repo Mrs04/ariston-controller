@@ -278,7 +278,7 @@ bcol = st.columns(3)
 if bcol[0].button("➕ Add rule"):
     edited_rows.append(Rule(name=f"Rule {len(edited_rows)+1}",
                             start="00:00", end="06:00", offset=0.0,
-                            floor=40.0, cap=50.0, enabled=True))
+                            floor=40.0, cap=50.0, enabled=False))
     st.session_state.ruleset = RuleSet(rules=edited_rows)
     save_rules(st.session_state.ruleset)
     st.rerun()
